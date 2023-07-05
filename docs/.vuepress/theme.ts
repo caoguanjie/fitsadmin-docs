@@ -13,7 +13,7 @@ export default hopeTheme({
 
   logo: "/images/logo.png",
 
-  repo: "https://github.com/caoguanjie/fitsadmin",
+  repo: "https://github.com/caoguanjie/fitsadmin-docs",
 
   docsDir: "demo/src",
 
@@ -51,7 +51,7 @@ export default hopeTheme({
        * Using Giscus
        */
       provider: "Giscus",
-      repo: "caoguanjie/fitsadmin",
+      repo: "caoguanjie/fitsadmin-docs",
       repoId: "R_kgDOH1rXBg",
       category: "Announcements",
       categoryId: "DIC_kwDOH1rXBs4CRH-l",

@@ -21,7 +21,7 @@
 
 <script lang='ts' setup>
 
-const base = process.env.NODE_ENV === 'github' ? '/fitsadmin/' : "/"
+const base = process.env.NODE_ENV === 'github' ? '/fitsadmin-docs/' : "/"
 const url = `${base}images/PxCook.pxcp`
 
 </script>
