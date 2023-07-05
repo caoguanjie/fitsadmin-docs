@@ -52,9 +52,9 @@ export default hopeTheme({
        */
       provider: "Giscus",
       repo: "caoguanjie/fitsadmin-docs",
-      repoId: "R_kgDOH1rXBg",
+      repoId: "R_kgDOH5_ntg",
       category: "Announcements",
-      categoryId: "DIC_kwDOH1rXBs4CRH-l",
+      categoryId: "DIC_kwDOH5_nts4CXr2z",
 
       /**
        * Using Twikoo
