@@ -37,7 +37,7 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           # 这是文档部署到的分支名称
-          repository-name: caoguanjie/fitsadmin
+          repository-name: caoguanjie/fitsadmin-docs
           # 令牌，是要你的GitHub设置了这个ACCESS_TOKEN属性的令牌，代替你的账号密码
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           branch: docs

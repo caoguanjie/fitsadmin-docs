@@ -28,7 +28,8 @@
 ![图 2](https://github.com/caoguanjie/fitsadmin/blob/master/docs/.vuepress/public/images/20220810044534.png)  
 
 ## 官方文档
-> 由于fitsadmin的项目需要不断更新vue的版本和element-plus版本，文档缺不需要更新，如果再合相同的项目，会造成文档编译失败
+> 由于fitsadmin的项目需要不断更新vue的版本和element-plus版本，文档却不需要时刻更新，如果再合相同的项目，会造成文档编译失败
+
 [传送门](https://caoguanjie.github.io/fitsadmin/)
 
 
