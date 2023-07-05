@@ -1,1 +1,1 @@
-var a="/fitsadmin/assets/ewnlogin.cba853fb.svg";export{a as default};
+var s="/fitsadmin-docs/assets/ewnlogin.cba853fb.svg";export{s as default};

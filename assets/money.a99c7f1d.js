@@ -1,1 +1,1 @@
-var a="/fitsadmin/assets/money.dc186a3d.svg";export{a as default};
+var s="/fitsadmin-docs/assets/money.dc186a3d.svg";export{s as default};

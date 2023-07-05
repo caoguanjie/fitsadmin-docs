@@ -1,1 +1,1 @@
-var s="/fitsadmin/assets/goods.1798593d.svg";export{s as default};
+var s="/fitsadmin-docs/assets/goods.1798593d.svg";export{s as default};
