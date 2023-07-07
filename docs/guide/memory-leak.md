@@ -303,3 +303,106 @@ function updatedWindowHeight() {
 
 
 截止7月3日之前，内存泄露问题没有很好的方案可以解决，在没有vue官方团队没有修复bug之前，还是采用全局页面缓存的方式最合适，至少不会因为页面左右切换导致不断有新的内存泄露产生。
+
+## 2023年7月6日解决`Teleport`组件带来的问题
+在上面的排查过程中，我们很明确知道vue3的`Teleport`组件有明显的内存泄露问题，在没有得到官方修复的消息之前，我们还是得解决问题的。
+
+经过一系列对vue3源码的理解，我对vue的源码进行的修复，经过实践，修复的代码可取，能直接解决内存泄露的问题。
+
+### 旧代码
+```js
+// 路径：src/components/Teleport.ts
+const isTeleportDisabled = (props) => props && (props.disabled || props.disabled === "");
+
+if (doRemove || !isTeleportDisabled(props)) {
+    hostRemove(anchor);
+    if (shapeFlag & 16) {
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        unmount(
+          child,
+          parentComponent,
+          parentSuspense,
+          true,
+          !!child.dynamicChildren
+        );
+      }
+    }
+  }
+```
+
+### 修改后的代码
+```js
+doRemove && hostRemove(anchor);
+if (shapeFlag & 16 /* ShapeFlags.ARRAY_CHILDREN */) {
+    const shouldRemove = doRemove || !isTeleportDisabled(props);
+    for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        unmount(child, parentComponent, parentSuspense, shouldRemove, !!child.dynamicChildren);
+    }
+}
+```
+
+::: info
+为什么修改这里呢？我们以el-dialog的例子来测试
+::: 
+
+当我们使用apeendToBody的时候，传给isTeleportDisabled的props如图，props里面的disabled属性为false，可以参考
+
+![图 0](/images/20230707041807.png)  
+
+当没有使用appendToBody的时候，props里面的disabled为true，导致isTeleportDisabled判断为true，导致无法执行umount
+
+![图 1](/images/20230707041830.png)  
+
+
+::: tip
+我已经优化的源码上传到[github](https://github.com/caoguanjie/vue3-runtime-core),
+想要调整项目代码的前端开发们，可以执行命令：`npm i https://github.com/caoguanjie/vue3-runtime-core`即可完成代码的替换
+不过要注意，我优化的版本是v3.2.47，不同版本的，请升级到这个版本。这个版本上面已经说过解决了vue Devtools产生的泄露问题。
+::: 
+
+
+### 优化效果
+> 要说明一点，下面视频是模拟每开一个tabs页面就增加80m左右的内存，至于优化固定90m是因为第一个tab的缓存永远的清除不了，这个是调试开发时vue devtools的bug，在生产环境上不会出现。
+
+#### 优化之前
+<video  width="100%"   muted="" controls autoplay loop><source src="/images/old.mp4" type="video/mp4"></video>
+
+#### 优化之后
+
+<video  width="100%"   muted="" controls autoplay loop><source src="/images/new.mp4" type="video/mp4"></video>
+
+
+## 2023年7月7日
+做完上面所有操作后，我同步到框架demo的项目里面，发现框架中的用户管理还是存在泄露情况。
+
+![图 2](/images/20230707043536.png)  
+
+排查到内存泄露的原因是：
+vxe-table的搜索区域用了`el-select`这个渲染器
+```js
+{
+    field: 'tap', span: 3, title: '用户标签', itemRender: {
+        name: 'ElSelect',
+        props: {
+            // multiple: true,
+            collapseTags: true,
+            collapseTagsTooltip: true,
+            clearable: true
+        },
+        options: [
+            {
+                value: '2',
+                label: '项目私立',
+            }
+        ]
+    }
+}
+```
+
+进一步我们排查到`/src/utils/base/VXETablePluginElement.ts`这个文件的渲染器
+
+![图 3](/images/20230707050318.png)  
+
+为了排查内存泄露情况，我又简单写了个例子，证明了vxe-table集成element-plus的渲染器是不会发生泄露的，可能在复杂的业务里面还有其他影响因素，我还没有排查出来的，因此后续有时间我还会继续排查下去的，毕竟我的例子和项目，打包环境和其他依赖并不完全相同，只有vue的版本保持一致而已，后续等框架继续更新，我再排查情况。
