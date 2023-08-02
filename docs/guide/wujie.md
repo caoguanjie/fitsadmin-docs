@@ -258,7 +258,13 @@ window.$wujie?.bus.$on("事件的名字自定义，要唯一", (obj: any) => {
 ```
 :::
 
-#### 如果子应用和主应用同时开了缓存会怎么样？
+
+::: danger 保活模式有几个坑要注意
+1. 如果在状态管理器中设置的`setupApp`方法中的URL中没有具体的地址，那么在`WujieVue`组件中再设置完整地址的URL属性无用，会直接打开子应用的首页，如果要跳转到具体地址，需要使用通讯功能bus，通知子应用自身跳转
+2. 如果`WujieVue`组件所在的组件设置缓存，一定要在onActivated生命周期中重新调用`startApp`的方法，不然切换tab之后，再切换回来，页面会显示空白
+3. 如果`WujieVue`组件所在的组件设置缓存，本身wujie也设置了保活模式，最好不要打开新的tab，跳转到新的子应用页面，这样当前组件的状态就保留不了，如果此刻连子应用的状态都想保留，还要子应用设置keepalive属性，这样改造的成本很大，不值得
+   
+:::
 
 
 ### 单例模式
@@ -356,6 +362,16 @@ onMounted(() => {
 ```
 
 
+
+
+## 如何做好主应用和子应用的组件缓存方案
+
+在[Keepalive页面缓存机制](../guide/keepalive.md)一文中，我们可以知道，单一项目fitsadmin框架的组件缓存方案主要依靠`keepalive`组件做各种状态的管理，从而达到组件缓存的目的。在无界框架中，我们有`保活`、`单例`、`重建`三种状态可以选择，到底哪一种更符合我们的组件缓存的方案呢？这是我们将要讨论的内容
+
+
+
+
+
 ## 发现的问题
 
 ### 子应用的相对地址图片没有替换成绝对地址
@@ -381,6 +397,154 @@ const _document = window.__POWERED_BY_WUJIE__ ? window.parent.document.body : wi
 
 解决方案： 将子应用将body设置为position: relative即可
 
+
+### 单例模式下切换tab，子应用只是第一次成功加载，第二次之后出现白屏
+
+原因：子应用加载第一次之后，Pinia状态管理器中的用户信息已经存在，销毁Vue的实例，并不会销毁状态管理器上面的值，因此第二次打开子应用时，发现在路由守卫（routerGuard.ts）中的关键代码` if (user.roles.length === 0) `判断用户角色已经存在了，因此没有执行里面的生成动态路由的逻辑，导致了没有生成完整路由，导致页面空白。
+
+解决方案：
+1. 给子应用的所有状态管理器文件加上`路径前缀`，让子应用在创建状态时跟主应用不要共用相同的状态和变量。
+
+```ts
+// 给子应用的id加上路径前缀，区分主应用和子应用的状态
+const usePermissionStore = defineStore({
+  id: import.meta.env.BASE_URL + 'permission',
+})
+```
+
+::: warning 注意
+加路径的前缀这个操作，更多是在主应用和子应用在相同域名底下部署，必须要这样操作，但是如果主应用和子应用在不同的域名底下部署的话，则不需要改造，因为不会影响到它们数据持久化，window.localstorge等api本身就是不同域名有不同的作用域
+:::
+
+2. 然后改造`main.ts`文件和`@/store/index.ts`文件
+::: tabs
+@tab:active main.ts
+```ts
+if (window.__POWERED_BY_WUJIE__) {
+  let instance: any;
+  window.__WUJIE_MOUNT = () => {
+    instance = createApp(AppComponent)
+    init(instance, true)
+  };
+  /**
+   * 每次销毁之前，先清空用户信息，在路由守卫方法中，是根据用户的角色是否存在，去执行动态路由生成。
+   * 因此每次创建新的vue实例时，需要先清空用户信息，才保证路由守卫重新执行动态路由的生成
+   */
+  window.__WUJIE_UNMOUNT = () => {
+     /** ----------关键代码在这里 ------------- */
+      clearUserInfo();
+     /** ----------关键代码在这里 ------------- */
+    instance.unmount();
+  };
+  /*
+    由于vite是异步加载，而无界可能采用fiber执行机制
+    所以mount的调用时机无法确认，框架调用时可能vite
+    还没有加载回来，这里采用主动调用防止用没有mount
+    无界mount函数内置标记，不用担心重复mount
+  */
+  window.__WUJIE.mount()
+} else {
+  init(createApp(AppComponent))
+}
+```
+@tab @/store/index.ts
+```ts
+/**
+ * 清理用户信息
+ */
+export function clearUserInfo() {
+  const { user } = useStore();
+  user.roles = []
+}
+```
+:::
+
+
+
+
+### 子应用被多次切换导致el-popover报错，程度直接挂掉
+> 相关问题在[issue](https://github.com/Tencent/wujie/issues/325)有相应的解决办法
+
+![图 2](/images/20230802034310.png)  
+
+
+原因：在 `element-plus` 中，将所有的` el-popper` 插入到一个根元素` .el-popper-container-N` 中，当一个应用被联想后，这个根元素` .el-popper-container-N `被 wujie 来自 dom树上被移除了，当这个应用再次启动时，这个根元素没有被创建，但是被引用了。
+
+解决方案：
+
+1. 框架已经把关键代码写在了状态管理器文件`src/store/base/micro-frontends.ts`
+
+```ts
+    /**
+     * 修复element-plus中有使用Teleport组件带来的副作用，导致的页面报错奔溃
+     * @returns 
+     */
+    function fixElementPlusTeleportCrash() {
+        const { id, selector } = usePopperContainerId()
+        if (!document.body.querySelector(selector.value)) {
+            const createContainer = (id: string) => {
+                const container = document.createElement('div')
+                container.id = id
+                document.body.appendChild(container)
+                return container
+            }
+            const container = createContainer(id.value)
+            return () => {
+                container.remove()
+            }
+        }
+        return () => { }
+    }
+```
+
+2. 子应用需要改造`main.ts`文件和`@/store/index.ts`文件
+::: tabs
+@tab:active main.ts
+```ts
+if (window.__POWERED_BY_WUJIE__) {
+  let instance: any;
+  window.__WUJIE_MOUNT = () => {
+    instance = createApp(AppComponent)
+    init(instance, true)
+    /** ----------关键代码在这里 ------------- */
+    instance.dispose = fixElementPlusTeleportCrash()
+    /** ----------关键代码在这里 ------------- */
+    console.error('创建了', instance)
+  };
+  /**
+   * 每次销毁之前，先清空用户信息，在路由守卫方法中，是根据用户的角色是否存在，去执行动态路由生成。
+   * 因此每次创建新的vue实例时，需要先清空用户信息，才保证路由守卫重新执行动态路由的生成
+   */
+  window.__WUJIE_UNMOUNT = () => {
+    console.error('销毁了')
+    clearUserInfo();
+     /** ----------关键代码在这里 ------------- */
+    instance.dispose();
+     /** ----------关键代码在这里 ------------- */
+    instance.unmount();
+  };
+  /*
+    由于vite是异步加载，而无界可能采用fiber执行机制
+    所以mount的调用时机无法确认，框架调用时可能vite
+    还没有加载回来，这里采用主动调用防止用没有mount
+    无界mount函数内置标记，不用担心重复mount
+  */
+  window.__WUJIE.mount()
+} else {
+  init(createApp(AppComponent))
+}
+```
+@tab @/store/index.ts
+```ts
+/**
+ * 修复element-plus中有使用Teleport组件带来的副作用
+ */
+export function fixElementPlusTeleportCrash() {
+  const micro = useMicroFrontendsStore();
+  return micro.fixElementPlusTeleportCrash();
+}
+```
+:::
 ## IIS设置允许跨域
 
 ### 1. 找到HTTP响应头
