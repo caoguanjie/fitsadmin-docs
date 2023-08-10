@@ -1,5 +1,41 @@
 # 更新日志
 
+
+## [2.0.0-beta.1](https://caoguanjie.github.io/fitsadmin-docs/guide/CHANGELOG.html#_1-1-0-2023-7-25)(2023-7-25)
+
+### 重大改变
+
+- **改变项目目录** : 调整了项目结构，为了后续的微前端框架接入做好准备。
+- **pnpm-workspace.yml** : 引入了 Monorepo 方案管理单一项目多个模块项目,为微前端方案做准备
+- **.changesets** : 使用 changesets 管理包版本和发布
+- **Vite.config.ts:** ： 改变了项目的导出路径，调整路径结构
+
+
+## [v1.2.4](https://caoguanjie.github.io/fitsadmin-docs/guide/CHANGELOG.html#_1-1-0-2023-7-24)(2023-7-24)
+
+**Vite.config.ts:** 彻底解决生产环境 formcreate 自动导入没有注册 element 的组件的问题([2106aa9](https://github.com/caoguanjie/fitsadmin/commit/2106aa9aada4d7c6f988f2b2cf0978fa8c9ca669),[682394b](https://github.com/caoguanjie/fitsadmin/commit/682394bbdcd7e48e7d6ae69b0c0f9ed3420ffc99))
+
+## [v1.2.3](https://caoguanjie.github.io/fitsadmin-docs/guide/CHANGELOG.html#_1-1-0-2023-7-20)(2023-7-20)
+
+### BUG 修复（Bug Fixes）
+
+- **RouteMeta:** 解决开发者自定义路由 meta 信息时，自定义 meta 信息丢失的问题([7a29c12](https://github.com/caoguanjie/fitsadmin/commit/7a29c121448d149d03f87413b43834c338761bfd))
+- **Vite.config.ts:** 解决 window 系统路径反斜杠`\`导致 elementplus 导入失败、新增可以允许跨域([5247331](https://github.com/caoguanjie/fitsadmin/commit/52473317825df8793ea3db4f7172714ce27e8241)、[4e6040b](https://github.com/caoguanjie/fitsadmin/commit/4e6040be451965cd9ba3d69fee1d01ddf542cf68))
+- **other-import:** 解决 formcreate 插件重复注册的问题，目前 formcreate 不存在自动导入的方案，只能全局导入([16bbc62](https://github.com/caoguanjie/fitsadmin/commit/16bbc6290ebd2eb7b7fc4fc47d90b28b1dc02147))
+
+## [v1.2.2](https://caoguanjie.github.io/fitsadmin-docs/guide/CHANGELOG.html#_1-1-0-2023-7-14)(2023-7-14)
+
+### BUG 修复（Bug Fixes）
+
+- **Login:** 修复登录界面的点击登录显示登录成功，但未进入系统界面的 bug
+- **Vite.config.ts:** 修复了打包正式包之后，按需加载 ElementPlus 的表单样式和组件丢失问题([8465180](https://github.com/caoguanjie/fitsadmin/commit/8465180781fd7f5a3dd61e20a25f68731b2af253))
+- **Vite.config.ts:** 解决了 fullImportPlugin 函数替换的 ElementPlus 的引入位置问题([8465180](https://github.com/caoguanjie/fitsadmin/commit/8465180781fd7f5a3dd61e20a25f68731b2af253))
+- **ElMessageBox:** 解决了按需加载弹框之后，程序二次导入导致的弹框样式消失问题（[2fa73c1](https://github.com/caoguanjie/fitsadmin/commit/2fa73c1876f5ff8775b50df2659e09600cd0facf)）
+
+### 性能优化
+
+- **FormCreate:** 升级了表单自动生成工具的 FormCreate 版本，升级到`v3.1.23`（[773a5e5](https://github.com/caoguanjie/fitsadmin/commit/773a5e592f3a76af08d30d3b84438f5ba02d2e56)）
+
 ## [v1.2.1](https://caoguanjie.github.io/fitsadmin-docs/guide/CHANGELOG.html#_1-1-0-2023-7-13)(2023-7-13)
 ### 重大变化
 -  **Mock Data:** 增加线上demo的接口请求方案，将内部部署的Yapi上Demo接口导入平台ApiFox，开启云模拟。
