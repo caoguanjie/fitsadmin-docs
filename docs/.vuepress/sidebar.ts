@@ -11,7 +11,7 @@ export default sidebar({
     },
     {
       text: '其他',
-      children: ['function-list', 'svn', 'memory-leak', 'micro-frontends', 'CHANGELOG']
+      children: ['question', 'function-list', 'svn', 'memory-leak', 'micro-frontends', 'CHANGELOG']
     }
   ],
   '/components/': [
