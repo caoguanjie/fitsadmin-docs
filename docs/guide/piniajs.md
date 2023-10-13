@@ -65,16 +65,7 @@ const useExampleStore = defineStore({
      *  开启数据缓存
      * 默认所有 state 都会进行缓存，你可以通过 paths 指定要持久化的字段，其他的则不会进行持久化。
      */
-  persist: {
-    enabled: true,
-    strategies: [
-      {
-        key: "keyValue",
-        storage: window.localStorage,
-        paths: ['app']
-      }
-    ]
-  }
+  persist: true
 });
 
 export default useExampleStore;
@@ -148,7 +139,7 @@ console.log(example.app)
 ```sh
 npm install pinia
 # 数据持久化的插件
-npm install pinia-plugin-persist
+npm install vue3-persist-storages
 ```
 
 ### Pinia全局注册
@@ -170,58 +161,185 @@ export function setupStore(app: App) {
 
 这里要单独说一下数据持久化这块，FitsAdmin的框架的token存储主要采用的是cookie的存储方式，cookie存储主要的好处是，当浏览器所有窗口都关闭之后，token也会消失，下次打开浏览器就重新登录
 
-因此我们采用第三方库`js-cookie`处理cookie的问题，主要应用如下：
+除了以上原因，我们还自主研发了`vue3-persist-storages`这个终极存储方案，里面fitsadmin框架所有的存储方法，其特点如下：
+
+- ✅ 囊括了`Cookies`、`LocalStorage`、`SessionStorage`、`indexedDB`、`WebSQL`所有存储方案，可以自定义选择
+- ✅ 支持普通对象和`代理对象proxy`的存储
+- ✅ 支持本地持久化存储的`有效期设置`
+- ✅ 支持通过配置` 前缀、后缀 `，防止父子项目之间持久化数据互相污染
+- ✅ 支持本地存储的数据自定义配置`AES加密`和`解密`
+- ✅ 封装了pinia plugin 插件，支持pinia 的持久化存储，具体特点如下：
+     - 与 [vuex-persistedstate](https://github.com/robinvdvleuten/vuex-persistedstate) 相似的 API
+     - 所有 Store 均可单独配置，也可以全局设置
+     - 恢复持久化数据前后的 hook
+     - 同样支持`有效期`、`数据加密和解密`、`自定义storage`设置
+
+
+#### 初始化持久化插件
 
 ```ts
-// src/store/base/user.ts
-import { defineStore } from 'pinia';
-import Cookies from 'js-cookie';
+// 直接配置插件
+import { createPinia } from 'pinia'
+import piniaPluginPersisted from 'vue3-persist-storages'
 
-const cookiesStorage: any = {
-  setItem(key: string, state: any) {
-    // 默认有效期是7天
-    const _state = JSON.parse(state);
-    return Cookies.set("accessToken", _state.token);
-  },
-  getItem(key: string) {
-    return JSON.stringify({
-      token: Cookies.get("accessToken"),
-    });
-  },
-};
-
-const useUserStore = defineStore({
-  id: 'user',
-  state: () => ({
-   
-  }),
-  actions: {
-   
-  },
-  /**
-   *  开启数据缓存
-   * 默认所有 state 都会进行缓存，你可以通过 paths 指定要持久化的字段，其他的则不会进行持久化。
-   * pinia的插件storage默认情况下，存储设置为 sessionStorage，但您可以通过设置密钥来指定要用于每个策略的存储。
-   * 下面的例子就是利用js-cookie插件做token的缓存
-   */
-  persist: {
-    enabled: true,
-    strategies: [
-      {
-        storage: window.localStorage,
-        paths: [],
-      },
-      {
-        storage: cookiesStorage,
-        paths: ["token"],
-      },
-    ],
-  },
-});
-
-export default useUserStore;
-
+const pinia = createPinia()
+pinia.use(piniaPluginPersisted)
 ```
+
+
+#### 全局配置
+如果你不想要同域名下子项目持久化数据之间互相污染，可以全局配置前缀或后缀、数据库名、表名、是否开启调试、是否开启加密
+```ts
+export interface IPluginOption {
+    // 前缀, 默认值： ""
+    prefix?: string;
+    // 后缀 默认值： ""
+    suffix?: string;
+    // 数据库名称, 默认值：Vue3PersistStorage
+    name?: string;
+    // 数据库中表名，默认值：DataShee
+    storeName?: string;
+    // 调试模式，还原失败打印报错（可选）
+    debug?: boolean;
+    // 是否开启加密功能
+    encryption?: boolean
+}
+```
+
+具体使用：
+
+```ts
+import { createPinia } from 'pinia'
+import {createPlugin} from 'vue3-persist-storages'
+
+const pinia = createPinia()
+pinia.use(createPlugin({
+  // 前缀
+   prefix: '子项目id', 
+   // 开启数据加密
+   encryption: true,
+   // 开启调试
+   debug: true
+   // 全局配置默认数据库名
+   name: 'TestDataBase'
+}))
+```
+
+#### 模块配置
+
+模块想要启用持久化，可以配置 persist 参数，它的类型是 TPersist
+
+```ts
+// 全局的配置，单个模块也可以继承，重新配置
+export interface IPluginOption {
+    // 前缀, 默认值： ""
+    prefix?: string;
+    // 后缀 默认值： ""
+    suffix?: string;
+    // 数据库名称, 默认值：Vue3PersistStorage
+    name?: string;
+    // 数据库中表名，默认值：DataShee
+    storeName?: string;
+    // 调试模式，还原失败打印报错（可选）
+    debug?: boolean;
+    // 是否开启加密功能
+    encryption?: boolean
+}
+
+export interface IStorageOption extends IPluginOption {
+    // storage类型，有localStorage、sessionStroage（可选）,可配合type使用
+    storage?: Storage;
+    // 是否开启有效期, 默认值：false
+    isOpenExpires?: boolean;
+    // 有效期默认几天, 默认值: 7天
+    day?: number;
+}
+
+export interface PersistOptions extends IStorageOption {
+    // 使用 indexedDB 或 storage（可选）
+    type?: 'storage' | 'indexedDB' | 'cookies';
+    // 持久化存储的key（可选）
+    key?: string;
+    // 需要持久化的数据的路径（可选）
+    paths?: string[];
+    // 还原前执行函数（可选）
+    beforeRestore?: (context: PiniaPluginContext) => void;
+    // 还原后执行函数（可选）
+    afterRestore?: (context: PiniaPluginContext) => void;
+}
+
+export type TPersist = boolean | PersistOptions | PersistOptions[];
+```
+
+当你要启用持久化时，可以这么做
+```ts
+export const useUserStore = defineStore({
+  id: 'user',
+  persist: true, // 开启持久化
+  state: () => ({
+    name: 'caoguanjie'
+  })
+});
+```
+当你设置 persist = true 时，此模块开启了持久化功能，相当于传入了默认配置：
+
+```ts
+ persist: {
+    type: 'indexedDB',
+    name: 'Vue3PersistStorage'
+    storeName: 'DataSheet'
+    key: $store.id, // 此模块的默认id
+    paths: undefined,
+    encryption: false,
+    beforeRestore: undefined,
+    afterRestore: undefined,
+    debug: false,
+  }
+```
+
+当然，你也可以传入`persist`相关对象属性，进行配置，如下：
+
+```ts
+export const useUserStore = defineStore({
+  id: 'user',
+  persist: {
+      type: 'indexedDB',
+      name: 'TestDataBase'
+      storeName: 'DataSheet'
+      key: 'customKey', // 自定义id，不传就是默认模块id
+      paths: ['name'],
+      encryption: true,
+      beforeRestore: () =>{
+        console.log('beforeRestore');
+      },
+      afterRestore: () => {
+        console.log('afterRestore');
+      },
+      debug: false
+  }, // 开启持久化
+  state: () => ({
+    name: 'caoguanjie'
+  })
+});
+```
+
+如果遇到模块不同的变量需要用不同的存储方式时，你也可以传入`数组`结构的数据，如下方法：
+```ts
+persist: [
+    {
+      type: 'indexedDB',
+      encryption: true, // 用户信息可以设置加密
+      paths: ["userInfo", "isRememberme", "loginInfo"],
+    },
+    {
+      key: 'accessToken',
+      type: 'cookies', // token可以cookies保存，并且可以自定义设置键名为accessToken
+      paths: ["token"],
+    },
+  ],
+```
+
+
 
 ::: tip
 想学习更多「Pinia」更多用法，可以点击[Pinia.js上手指南](http://192.168.32.108:8012/#/knowledge/docs/piniajs)查看
